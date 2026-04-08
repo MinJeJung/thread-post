@@ -259,7 +259,35 @@ def post_thread(post_text, post_num):
     return False
 
 
+def preflight_check():
+    """Threads API 연결 가능 여부 사전 확인"""
+    print(f"[{now_str()}] === 사전 연결 체크 ===", flush=True)
+    try:
+        resp = requests.get(
+            f"{BASE_URL}/me",
+            params={"fields": "id,username", "access_token": ACCESS_TOKEN},
+            timeout=15,
+        )
+        data = resp.json()
+        if "error" in data:
+            code = data["error"].get("code", 0)
+            msg = data["error"].get("message", "")
+            if code == 190:
+                print("⚠️ Access Token 만료 - 재발급 필요", flush=True)
+                sys.exit(1)
+            print(f"[{now_str()}] API 오류 (code={code}): {msg}", flush=True)
+            sys.exit(1)
+        username = data.get("username", "unknown")
+        uid = data.get("id", "unknown")
+        print(f"[{now_str()}] ✅ 토큰 유효 — @{username} (id={uid})", flush=True)
+    except Exception as e:
+        print(f"[{now_str()}] ❌ Threads API 연결 불가: {e}", flush=True)
+        print(f"❌ 실패 사유: graph.threads.net 네트워크 접근 불가 — 프록시 차단으로 게시 불가", flush=True)
+        sys.exit(1)
+
+
 def main():
+    preflight_check()
     total = len(POSTS)
     estimated_end = datetime.now() + timedelta(minutes=INTERVAL_MINUTES * (total - 1))
     print(f"[{now_str()}] === Threads 자동 게시 시작 ===", flush=True)
